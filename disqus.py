@@ -10,6 +10,7 @@ __copyright__ = "Copyright (c) 2009 James Turk"
 __license__ = "BSD"
  
 import urllib, urllib2
+import time
 try:
     import json
 except ImportError:
@@ -49,32 +50,37 @@ class Thread(object):
             params['allow_comments'] = allow_comments
         return apicall('update_thread', params, 'POST')
 
-class Forum(object):
-    def __init__(self, d):
-        for k,v in d.iteritems():
-            setattr(self, k, v)
-        self._api_key = None
-
-    @property
-    def api_key(self):
-        if not self._api_key:
-            msg = apicall('get_forum_api_key', {'user_api_key':user_key,
-                                                 'forum_id':self.id})
-            self._api_key = msg
-        return self._api_key
-
-    def create_post(thread_id, message, author_name, author_email, parent_post=None, 
+    def create_post(self, message, author_name, author_email, parent_post=None,
                     created_at=None, author_url=None, ip_address=None):
-        params = {'forum_api_key': self.api_key, 'thread_id':thread_id, 'message':message, 'author_name':author_name, 'author_email':author_email}
+        params = {'forum_api_key': self.forum_api_key, 'thread_id':self.id,
+                  'message':message, 'author_name':author_name,
+                  'author_email':author_email}
         if parent_post:
             params['parent_post'] = parent_post
         if created_at:
+            if isinstance(created_at, time.struct_time):
+                created_at = time.strftime('%Y-%m-%dT%H:%M', created_at)
             params['created_at'] = created_at
         if author_url:
             params['author_url'] = author_url
         if ip_address:
             params['ip_address'] = ip_address
         return apicall('create_post', params, 'POST')
+
+class Forum(object):
+    def __init__(self, d, user_key):
+        for k,v in d.iteritems():
+            setattr(self, k, v)
+        self._api_key = None
+        self.user_api_key = user_key
+
+    @property
+    def api_key(self):
+        if not self._api_key:
+            msg = apicall('get_forum_api_key', {'user_api_key':self.user_api_key,
+                                                 'forum_id':self.id})
+            self._api_key = msg
+        return self._api_key
 
     def get_thread_list(self):
         msg = apicall('get_thread_list', {'forum_api_key':self.api_key})
@@ -94,4 +100,4 @@ class Forum(object):
 
 def get_forum_list(user_key):
     msg = apicall('get_forum_list', {'user_api_key':user_key})
-    return [Forum(f) for f in msg]
+    return [Forum(f, user_key) for f in msg]
