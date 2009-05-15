@@ -88,7 +88,6 @@ class Forum(object):
     @property
     def api_key(self):
         if not self.__dict__['api_key']:
-            print 'fetching api_key'
             msg = apicall('get_forum_api_key', {'user_api_key':self.user_api_key,
                                                  'forum_id':self.id})
             self.__dict__['api_key'] = msg
@@ -104,7 +103,8 @@ class Forum(object):
 
     def get_thread_by_url(self, url):
         msg = apicall('get_thread_by_url', {'forum_api_key': self.api_key, 'url': url})
-        return Thread(msg, self.api_key)
+        if msg:
+            return Thread(msg, self.api_key)
 
     def thread_by_identifier(self, title, identifier):
         msg = apicall('thread_by_identifier', {'forum_api_key': self.api_key, 'title': title, 'identifier': identifier}, 'POST')
