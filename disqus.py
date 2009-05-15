@@ -18,6 +18,12 @@ except ImportError:
 
 api_url = 'http://disqus.com/api/%s/'
 
+def deunicode(ad):
+    return dict((str(k),v) for k,v in ad.iteritems())
+
+class DisqusError(Exception):
+    ''' base class for Disqus API errors '''
+
 def apicall(method, params, http_method='GET'):
     params = urllib.urlencode(params)
     if http_method == 'GET':
@@ -25,8 +31,10 @@ def apicall(method, params, http_method='GET'):
         response = urllib2.urlopen(url).read()
     else:
         response = urllib2.urlopen(api_url % method, params).read()
-    msg = json.loads(response)['message']
-    return msg
+    obj = json.loads(response)
+    if not obj['succeeded']:
+        raise DisqusError(obj['message'])
+    return obj['message']
 
 class Thread(object):
     def __init__(self, d, forum_api_key):
@@ -68,21 +76,25 @@ class Thread(object):
         return apicall('create_post', params, 'POST')
 
 class Forum(object):
-    def __init__(self, d, user_key):
-        for k,v in d.iteritems():
-            setattr(self, k, v)
-        self._api_key = None
-        self.user_api_key = user_key
+    def __init__(self, forum_api_key=None, id=None, name=None, shortname=None,
+                 created_at=None, user_api_key=None):
+        self.__dict__['api_key'] = forum_api_key
+        self.id = id
+        self.name = name
+        self.shortname = shortname
+        self.created_at = created_at
+        self.user_api_key = user_api_key
 
     @property
     def api_key(self):
-        if not self._api_key:
+        if not self.__dict__['api_key']:
+            print 'fetching api_key'
             msg = apicall('get_forum_api_key', {'user_api_key':self.user_api_key,
                                                  'forum_id':self.id})
-            self._api_key = msg
-        return self._api_key
+            self.__dict__['api_key'] = msg
+        return self.__dict__['api_key']
 
-    def get_thread_list(self):
+    def get_threads(self):
         msg = apicall('get_thread_list', {'forum_api_key':self.api_key})
         return [Thread(t, self.api_key) for t in msg]
 
@@ -98,6 +110,6 @@ class Forum(object):
         msg = apicall('thread_by_identifier', {'forum_api_key': self.api_key, 'title': title, 'identifier': identifier}, 'POST')
         return Thread(msg['thread'], self.api_key), msg['created']
 
-def get_forum_list(user_key):
-    msg = apicall('get_forum_list', {'user_api_key':user_key})
-    return [Forum(f, user_key) for f in msg]
+def get_forums(user_api_key):
+    msg = apicall('get_forum_list', {'user_api_key':user_api_key})
+    return [Forum(user_api_key=user_api_key, **deunicode(f)) for f in msg]
