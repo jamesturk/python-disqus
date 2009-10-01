@@ -46,7 +46,7 @@ class Post(object):
     def moderate(self, action):
         params = {'user_api_key':self.user_api_key, 'post_id':self.id,
                   'action':action}
-        apicall('moderate_post', params, 'POST')
+        return apicall('moderate_post', params, 'POST')
 
 class Thread(object):
     def __init__(self, d, user_api_key, forum_api_key):
@@ -97,14 +97,15 @@ class Thread(object):
         return apicall('create_post', params, 'POST')
 
 class Forum(object):
-    def __init__(self, forum_api_key=None, id=None, name=None, shortname=None,
-                 created_at=None, description=None, user_api_key=None):
-        self.__dict__['api_key'] = forum_api_key
+    def __init__(self, user_api_key, id, name=None, shortname=None,
+                 created_at=None, description=None, forum_api_key=None):
+        self.user_api_key = user_api_key
         self.id = id
         self.name = name
         self.shortname = shortname
         self.created_at = created_at
-        self.user_api_key = user_api_key
+        self.description = description
+        self.__dict__['api_key'] = forum_api_key
 
     @property
     def api_key(self):
